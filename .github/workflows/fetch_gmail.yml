@@ -1,8 +1,9 @@
 name: Fetch Gmail to Brain
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *' # Runs every hour
+  workflow_dispatch: # Allows you to run it manually
+
 jobs:
   update-brain:
     runs-on: ubuntu-latest
@@ -29,7 +30,8 @@ jobs:
                       for num in data[0].split():
                           status, msg_data = mail.fetch(num, '(RFC822)')
                           msg = email.message_from_bytes(msg_data[0][1])
-                          f.write(f'\n\n### GMAIL_INBOUND: {msg[\"subject\"]}\n')
+                          subject = msg['subject']
+                          f.write(f'\n\n### GMAIL_INBOUND: {subject}\n')
                           if msg.is_multipart():
                               for part in msg.walk():
                                   if part.get_content_type() == 'text/plain':
@@ -48,5 +50,5 @@ jobs:
           git config --global user.name 'Brain Bot'
           git config --global user.email 'bot@brain.com'
           git add MASTER_CONTEXT.md
-          git commit -m 'Gmail update' || echo 'No new emails'
+          git commit -m 'Added Gmail notes via GitHub Action' || echo 'No new emails'
           git push
