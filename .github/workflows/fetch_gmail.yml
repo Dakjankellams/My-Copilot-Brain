@@ -1,54 +1,29 @@
-name: Fetch Gmail to Brain
+name: Fetch Gmail
+
 on:
+  push:
+    branches:
+      - main
   schedule:
-    - cron: '0 * * * *' # Runs every hour
-  workflow_dispatch: # Allows you to run it manually
+    - cron: '0 * * * *'
+permissions:
+  contents: read
+  actions: write
 
 jobs:
-  update-brain:
+  fetch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-      - name: Fetch Emails
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-        run: |
-          python -c "
-          import imaplib, email, os
-          try:
-              mail = imaplib.IMAP4_SSL('imap.gmail.com')
-              mail.login(os.environ['GMAIL_USER'], os.environ['GMAIL_PASS'])
-              mail.select('inbox')
-              status, data = mail.search(None, '(SUBJECT \"ToBrain\")')
-              if data[0]:
-                  with open('MASTER_CONTEXT.md', 'a', encoding='utf-8') as f:
-                      for num in data[0].split():
-                          status, msg_data = mail.fetch(num, '(RFC822)')
-                          msg = email.message_from_bytes(msg_data[0][1])
-                          subject = msg['subject']
-                          f.write(f'\n\n### GMAIL_INBOUND: {subject}\n')
-                          if msg.is_multipart():
-                              for part in msg.walk():
-                                  if part.get_content_type() == 'text/plain':
-                                      f.write(part.get_payload(decode=True).decode('utf-8', errors='ignore'))
-                          else:
-                              f.write(msg.get_payload(decode=True).decode('utf-8', errors='ignore'))
-                          mail.store(num, '+FLAGS', '\\Deleted')
-                  mail.expunge()
-              mail.close()
-              mail.logout()
-          except Exception as e:
-              print(f'Error: {e}')
-          "
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Fetch Gmail
+        uses: some-gmail-fetch-action@latest
+
       - name: Commit and Push
         run: |
-          git config --global user.name 'Brain Bot'
-          git config --global user.email 'bot@brain.com'
-          git add MASTER_CONTEXT.md
-          git commit -m 'Added Gmail notes via GitHub Action' || echo 'No new emails'
+          git config --local user.email 'your-email@example.com'
+          git config --local user.name 'GitHub Actions'
+          git add .
+          git commit -m 'Automated Gmail fetch' || echo 'No changes to commit'
           git push
