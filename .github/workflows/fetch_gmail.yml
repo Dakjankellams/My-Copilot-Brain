@@ -1,17 +1,20 @@
 name: Fetch Gmail
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
       - main
   schedule:
     - cron: '0 * * * *'
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -57,7 +60,7 @@ jobs:
 
               subject, enc = decode_header(msg["Subject"])[0]
               if isinstance(subject, bytes):
-                  subject = subject.decode(enc or "utf-8", errors="ignore")
+                  subject = subject.decode(enc or "utf-8", errors="replace")
 
               body_text = ""
               if msg.is_multipart():
@@ -69,13 +72,13 @@ jobs:
                           filename = part.get_filename()
                           if filename:
                               filename = filename.replace("/", "_")
-                              attach_path = f"gmail/attachments/{timestamp}-{filename}"
+                              attach_path = f"gmail/attachments/{timestamp}_{filename}"
                               with open(attach_path, "wb") as f:
                                   f.write(part.get_payload(decode=True))
                       elif ctype == "text/plain":
-                          body_text += part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                          body_text += part.get_payload(decode=True).decode("utf-8", errors="replace")
               else:
-                  body_text = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+                  body_text = msg.get_payload(decode=True).decode("utf-8", errors="replace")
 
               with open(md_path, "w", encoding="utf-8") as f:
                   f.write(f"# {subject}\n\n")
@@ -88,16 +91,18 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
 
-       - name: Set Git Identity
-         run: |
-           git config --global user.name "github-actions[bot]"
-           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
+      - name: Set Git Identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Commit and Push
         run: |
-           git pull --rebase
-           bash no_changes_guard.sh
-           git add .
-           git commit -m "update"
-           git push
-    
+          git pull --rebase
+          if git diff --quiet; then
+            echo "No changes — skipping push."
+            exit 0
+          fi
+          git add .
+          git commit -m "update"
+          git push
