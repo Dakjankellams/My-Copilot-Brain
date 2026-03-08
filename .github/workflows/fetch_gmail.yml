@@ -90,9 +90,9 @@ jobs:
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
           
        - name: Commit and Push
-      run: |
-        bash no_changes_guard.sh
-        git add .
-        git commit -m "update"
-        git push
+         run: |
+           bash no_changes_guard.sh
+           git add .
+           git commit -m "update"
+           git push
     
