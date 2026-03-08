@@ -91,6 +91,7 @@ jobs:
           
        - name: Commit and Push
          run: |
+           git pull --rebase
            bash no_changes_guard.sh
            git add .
            git commit -m "update"
