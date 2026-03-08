@@ -88,10 +88,11 @@ jobs:
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-
-      - name: Commit and Push
-        run: |
-          bash no_changes_guard.sh
-          git add .
-          git commit -m "update"
-          git push
+          
+          - name: Commit and Push
+      run: |
+        bash no_changes_guard.sh
+        git add .
+        git commit -m "update"
+        git push
+    
