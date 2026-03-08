@@ -18,7 +18,76 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Fetch Gmail
-        uses: some-gmail-fetch-action@latest
+        run: |
+          python3 << 'EOF'
+          import imaplib, email, os, base64
+          from email.header import decode_header
+          import datetime
+
+          USER = os.environ["GMAIL_USER"]
+          PASS = os.environ["GMAIL_PASS"]
+
+          mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+          mail.login(USER, PASS)
+          mail.select("inbox")
+
+          status, messages = mail.search(None, '(SUBJECT "ToBrain")')
+          if status != "OK":
+              exit(0)
+
+          os.makedirs("gmail", exist_ok=True)
+          os.makedirs("gmail/attachments", exist_ok=True)
+
+          for num in messages[0].split():
+              status, data = mail.fetch(num, "(RFC822)")
+              if status != "OK":
+                  continue
+
+              msg = email.message_from_bytes(data[0][1])
+
+              date_tuple = email.utils.parsedate_tz(msg["Date"])
+              if date_tuple:
+                  ts = datetime.datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
+                  timestamp = ts.strftime("%Y-%m-%d-%H-%M-%S")
+              else:
+                  timestamp = num.decode()
+
+              md_path = f"gmail/{timestamp}-ToBrain.md"
+              if os.path.exists(md_path):
+                  continue
+
+              subject, enc = decode_header(msg["Subject"])[0]
+              if isinstance(subject, bytes):
+                  subject = subject.decode(enc or "utf-8", errors="ignore")
+
+              body_text = ""
+              if msg.is_multipart():
+                  for part in msg.walk():
+                      ctype = part.get_content_type()
+                      disp = str(part.get("Content-Disposition"))
+
+                      if "attachment" in disp:
+                          filename = part.get_filename()
+                          if filename:
+                              filename = filename.replace("/", "_")
+                              attach_path = f"gmail/attachments/{timestamp}-{filename}"
+                              with open(attach_path, "wb") as f:
+                                  f.write(part.get_payload(decode=True))
+                      elif ctype == "text/plain":
+                          body_text += part.get_payload(decode=True).decode("utf-8", errors="ignore")
+              else:
+                  body_text = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+
+              with open(md_path, "w", encoding="utf-8") as f:
+                  f.write(f"# {subject}\n\n")
+                  f.write(body_text)
+
+          mail.close()
+          mail.logout()
+          EOF
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
 
       - name: Commit and Push
         run: |
