@@ -91,8 +91,7 @@ jobs:
 
       - name: Commit and Push
         run: |
-          git config --local user.email 'your-email@example.com'
-          git config --local user.name 'GitHub Actions'
+          bash no_changes_guard.sh
           git add .
-          git commit -m 'Automated Gmail fetch' || echo 'No changes to commit'
+          git commit -m "update"
           git push
